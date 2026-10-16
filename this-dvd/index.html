@@ -15,6 +15,7 @@
 // confetti when it hits a corner exactly. Port of the KDE wallpaper local.dvdbounce.
 // Knobs (URL params), e.g. index.html?speed=8&size=20
 const q = new URLSearchParams(location.search);
+const SCALE = +q.get('scale') || 1;   // render resolution; 0.5 = a quarter of the pixels, much lighter
 const SPEED = +q.get('speed') || 5;    // 1..20, x30 px/s at 1080p
 const SIZE = +q.get('size') || 14;     // logo width, % of screen width
 
@@ -48,8 +49,8 @@ const confetti = [];
 const SLACK = 10;   // corner = bouncing off one wall while within this many px of the other
 
 function resize() {
-  W = cv.width = Math.round(innerWidth * devicePixelRatio);
-  H = cv.height = Math.round(innerHeight * devicePixelRatio);
+  W = cv.width = Math.round(innerWidth * devicePixelRatio * SCALE);
+  H = cv.height = Math.round(innerHeight * devicePixelRatio * SCALE);
   k = H / 1080;
 }
 addEventListener('resize', resize);

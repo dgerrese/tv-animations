@@ -22,6 +22,7 @@
 // 12 hues. Port of the KDE wallpaper local.thissnow.
 // Knobs (URL params), e.g. index.html?amount=120&speed=3&size=4
 const q = new URLSearchParams(location.search);
+const SCALE = +q.get('scale') || 1;   // render resolution; 0.5 = a quarter of the pixels, much lighter
 const AMOUNT = +q.get('amount') || 80;   // flakes on screen
 const SPEED = +q.get('speed') || 5;      // x20 px/s at 1080p for the nearest layer
 const SIZE = +q.get('size') || 5;        // nearest flake, % of screen width
@@ -58,8 +59,8 @@ function fill() {
   LAYERS.forEach(L => { L.flakes = Array.from({ length: Math.round(AMOUNT * L.share) }, () => flake(L, rand(-0.1, 1) * H)); });
 }
 function resize() {
-  W = cv.width = Math.round(innerWidth * devicePixelRatio);
-  H = cv.height = Math.round(innerHeight * devicePixelRatio);
+  W = cv.width = Math.round(innerWidth * devicePixelRatio * SCALE);
+  H = cv.height = Math.round(innerHeight * devicePixelRatio * SCALE);
   k = H / 1080;
   fill();
 }

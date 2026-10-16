@@ -16,6 +16,7 @@
 // local.thisimpossible (impossible_core.c).
 // Knobs (URL params), e.g. index.html?rings=3&orbit=20&snap=20&hold=4
 const q = new URLSearchParams(location.search);
+const SCALE = +q.get('scale') || 1;   // render resolution; 0.5 = a quarter of the pixels, much lighter
 const num = (name, def, lo, hi) => Math.min(hi, Math.max(lo, q.has(name) ? +q.get(name) : def));
 const RINGS = num('rings', 2, 2, 8);        // nested triangles; 2 = the official logo
 const ORBIT = num('orbit', 12, 1, 60);      // degrees per second while orbiting
@@ -157,8 +158,8 @@ gl.enable(gl.DEPTH_TEST);
 gl.clearColor(0, 0, 0, 1);
 
 function resize() {
-  cv.width = Math.round(innerWidth * devicePixelRatio);
-  cv.height = Math.round(innerHeight * devicePixelRatio);
+  cv.width = Math.round(innerWidth * devicePixelRatio * SCALE);
+  cv.height = Math.round(innerHeight * devicePixelRatio * SCALE);
   gl.viewport(0, 0, cv.width, cv.height);
   const aspect = cv.width / cv.height, near = D / 4, top = near / (2 * FILL * EYE);
   gl.uniformMatrix4fv(u('proj'), false, frustum(-top * aspect, top * aspect, -top, top, near, 20 * D));

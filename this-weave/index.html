@@ -16,6 +16,7 @@
 // Port of the KDE wallpaper local.thisweave.
 // Knobs (URL params), e.g. index.html?speed=8&huecycle=0&huestep=0
 const q = new URLSearchParams(location.search);
+const SCALE = +q.get('scale') || 1;   // render resolution; 0.5 = a quarter of the pixels, much lighter
 const num = (name, def) => q.has(name) ? +q.get(name) : def;
 const SPEED = Math.max(num('speed', 10), 1);   // seconds per 2x zoom
 const OUT = num('direction', 0) === 1;         // 0 = zoom in, 1 = zoom out
@@ -137,8 +138,8 @@ gl.uniform4fv(u('colourTop'), rgba('#6b6e75'));
 gl.uniform4fv(u('background'), rgba('#000000'));
 
 function resize() {
-  cv.width = Math.round(innerWidth * devicePixelRatio);
-  cv.height = Math.round(innerHeight * devicePixelRatio);
+  cv.width = Math.round(innerWidth * devicePixelRatio * SCALE);
+  cv.height = Math.round(innerHeight * devicePixelRatio * SCALE);
   gl.viewport(0, 0, cv.width, cv.height);
   gl.uniform1f(u('aspect'), cv.width / cv.height);
   gl.uniform1f(u('pixels'), cv.height);

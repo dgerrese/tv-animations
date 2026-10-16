@@ -22,6 +22,7 @@
 // some with crossette comets or a second inner burst. Port of the KDE wallpaper local.thisfireworks.
 // Knobs (URL params), e.g. index.html?rate=60&sparks=80
 const q = new URLSearchParams(location.search);
+const SCALE = +q.get('scale') || 1;   // render resolution; 0.5 = a quarter of the pixels, much lighter
 const num = (name, def) => q.has(name) ? +q.get(name) : def;
 const RATE = Math.max(num('rate', 30), 1);       // rockets per minute
 const SPARKS = num('sparks', 60);                // logos per burst
@@ -53,8 +54,8 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const cv = document.getElementById('c'), g = cv.getContext('2d');
 let W, H, sparkPx;
 function resize() {
-  W = cv.width = Math.round(innerWidth * devicePixelRatio);
-  H = cv.height = Math.round(innerHeight * devicePixelRatio);
+  W = cv.width = Math.round(innerWidth * devicePixelRatio * SCALE);
+  H = cv.height = Math.round(innerHeight * devicePixelRatio * SCALE);
   sparkPx = Math.max(W * SIZE / 100, 4);
 }
 addEventListener('resize', resize);
@@ -75,8 +76,8 @@ function burst(hue, x, y, n, small) {
 }
 // trail glitter is a spark too, without a sprite
 function glitter(x, y) {
-  const a = (90 + rand(-25, 25)) * Math.PI / 180, v = rand(10, 70);
-  sparks.push({ x, y, vx: v * Math.cos(a), vy: v * Math.sin(a), s: rand(4, 8) * devicePixelRatio, age: 0, life: rand(0.3, 0.7), rot: 0, spin: 0 });
+  const a = (90 + rand(-25, 25)) * Math.PI / 180, v = rand(10, 70) * devicePixelRatio * SCALE;
+  sparks.push({ x, y, vx: v * Math.cos(a), vy: v * Math.sin(a), s: rand(4, 8) * devicePixelRatio * SCALE, age: 0, life: rand(0.3, 0.7), rot: 0, spin: 0 });
 }
 // flies from (x0, y0) to (x1, y1), fast off the ground and slowing towards the top, then calls then(x, y)
 const fly = (x0, y0, x1, y1, dur, then) => rockets.push({ x0, y0, x1, y1, dur, age: 0, debt: 0, then });
