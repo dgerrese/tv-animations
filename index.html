@@ -23,12 +23,15 @@
   input:invalid { border-color: #e04040; }
   input[type=checkbox] { width: 20px; height: 20px; justify-self: start; }
   input[type=color] { padding: 0; height: 32px; }
+  .free { margin: -16px 0 24px; color: #999; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+  .free input { width: 20px; height: 20px; }
   button { margin-top: 12px; font: inherit; font-size: 14px; background: none; color: #999; border: 1px solid #333; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 </style>
 </head>
 <body>
 <h1>th[is] TV</h1>
 <p>Open an animation, cast this tab to the TV (Chrome menu → Cast), then press F11 for fullscreen.</p>
+<label class="free"><input type="checkbox" id="free"> No limits: allow any number (extreme values can make the TV stutter or freeze)</label>
 <ul id="list"></ul>
 <script>
 // [param, label, default, min, max, step, hint]; type: number unless default is boolean or a #colour
@@ -73,7 +76,7 @@ const ANIMATIONS = [
 const load = k => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-const list = document.getElementById('list');
+const list = document.getElementById('list'), free = document.getElementById('free'), updates = [];
 for (const [dir, title, blurb, opts] of ANIMATIONS) {
   const li = document.createElement('li'), saved = load('tv:' + dir);
   const a = Object.assign(document.createElement('a'), { className: 'open' });
@@ -86,7 +89,7 @@ for (const [dir, title, blurb, opts] of ANIMATIONS) {
     if (hint) name.append(Object.assign(document.createElement('small'), { textContent: hint }));
     if (typeof def === 'boolean') { i.type = 'checkbox'; i.checked = saved[key] ?? def; }
     else if (String(def).startsWith('#')) { i.type = 'color'; i.value = saved[key] ?? def; }
-    else Object.assign(i, { type: 'number', min, max, step, value: saved[key] ?? def });
+    else { Object.assign(i, { type: 'number', min, max, step, value: saved[key] ?? def }); Object.assign(i.dataset, { min, max, step }); }
     l.append(name, i); det.append(l);
     return { key, def, i };
   });
@@ -111,10 +114,20 @@ for (const [dir, title, blurb, opts] of ANIMATIONS) {
     for (const { def, i } of inputs) i.type === 'checkbox' ? i.checked = def : i.value = def;
     update();
   };
-  update();
+  update(); updates.push(update);
   li.append(a, det);
   list.append(li);
 }
+// No limits: drop min/max/step from every number field, so any value goes into the links
+function setFree(on) {
+  for (const i of document.querySelectorAll('li input[type=number]'))
+    for (const k of ['min', 'max', 'step']) on ? i.removeAttribute(k) : i.setAttribute(k, i.dataset[k]);
+  for (const i of document.querySelectorAll('li input[type=number]')) if (on) i.step = 'any';
+  updates.forEach(f => f());
+}
+free.checked = load('tv:free') === true;
+free.onchange = () => { save('tv:free', free.checked); setFree(free.checked); };
+setFree(free.checked);
 </script>
 </body>
 </html>
