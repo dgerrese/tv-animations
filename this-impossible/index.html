@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>th[is] Impossible</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// The th[is] logo as a 3D sculpture that only looks woven from one viewpoint: the camera
+// orbits it, then snaps back to the magic view and holds. Port of the KDE wallpaper
+// local.thisimpossible (impossible_core.c).
+// Knobs (URL params), e.g. index.html?rings=3&orbit=20&snap=20&hold=4
+const q = new URLSearchParams(location.search);
+const num = (name, def, lo, hi) => Math.min(hi, Math.max(lo, q.has(name) ? +q.get(name) : def));
+const RINGS = num('rings', 2, 2, 8);        // nested triangles; 2 = the official logo
+const ORBIT = num('orbit', 12, 1, 60);      // degrees per second while orbiting
+const SNAP = num('snap', 30, 10, 300);      // seconds per cycle (orbit + hold)
+const HOLD = num('hold', 1, 1, 20);         // seconds in the magic view
+const hex = '#' + (q.get('colour') || 'f58113');
+const LEFT = [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255);
+
+/* Geometry from this-logo.scad, in its triangle coordinates p = (a, b, g): distances to the top,
+   left and bottom edge, a + b + g = L = 6 * rings. Leg k (left 0, bottom 1, top 2) is the left
+   leg turned k times by rho(a, b, g) = (g, a, b). A point of leg k lies at depth D * p[k] / L:
+   every leg starts near the eye at its capped corner and runs away to its square end, so where
+   legs overlap the one with the smallest own coordinate is in front, which is exactly the scad's
+   painting order. Seen from the eye at distance E in front of z = 0 it is the flat logo. */
+const T = 1;          // slab thickness, one bar width
+const EYE = 3;        // eye distance E in depth spans D
+const FILL = 0.6;     // logo height / screen height in the magic view; calibration knob
+const EASE = 4;       // seconds to ease into / out of the orbit, at most
+const PITCH = 26;     // pitch amplitude in degrees; sin(pi s) sin(2 pi s) peaks near 0.77, so about +-20
+// the logo's #303237, lifted to read on dark
+const COLOURS = [LEFT, [0xbd / 255, 0xbc / 255, 0xbc / 255], [0x6b / 255, 0x6e / 255, 0x75 / 255]];
+
+const L = 6 * RINGS, tan30 = 1 / Math.sqrt(3), D = 2 * L * tan30, E = EYE * D;
+
+const rho = (p, n) => { let [a, b, c] = p; for (let i = 0; i < n; i++) [a, b, c] = [c, a, b]; return [a, b, c]; };
+// balk(r) and kapje from the scad, as (a, b, g)
+const balk = r => [[0, 2 * r + 3, L - 2 * r - 3], [2, 2 * r + 1, L - 2 * r - 3], [L - 2 * r - 1, 2 * r + 1, 0],
+  [L - 2 * r, 2 * r, 0], [2, 2 * r, L - 2 * r - 2], [0, 2 * r + 2, L - 2 * r - 2]];
+const kapje = [[.5, .5, L - 1], [1, 0, L - 1], [.5, 0, L - .5], [0, 0, L], [0, .5, L - .5], [0, 1, L - 1]];
+// scad's naar_mm with steek 1, centred on the centroid
+const flatXY = p => [p[1] - L / 3, L * tan30 - (p[1] + 2 * p[0]) * tan30];
+// a point of the slab: flat position stretched along the eye's ray to depth z (GL looks down -z)
+const place = (f, z) => { const k = (E + z) / E; return [f[0] * k, f[1] * k, -z]; };
+
+// interleaved normal + position per vertex
+function tri(out, a, b, c, want) {
+  const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+  const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+  let len = Math.hypot(...n) || 1;   // kapje has one zero-area triangle; its normal doesn't matter
+  if (n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) len = -len;   // point the normal outward
+  for (const p of [a, b, c]) out.push(n[0] / len, n[1] / len, n[2] / len, ...p);
+}
+
+/* One hexagon of leg k as a slab. The scad hexagons are bent strips (not convex): split into the
+   quads 1-2-3-4 and 4-5-0-1. That also covers kapje, with one zero-area triangle. */
+function slab(out, poly, k) {
+  const f = [], front = [], back = [];
+  let area = 0;
+  for (const v of poly) {
+    const p = rho(v, k), z = D * p[k] / L, xy = flatXY(p);
+    f.push(xy); front.push(place(xy, z)); back.push(place(xy, z + T));
+  }
+  for (let i = 0; i < 6; i++) area += f[i][0] * f[(i + 1) % 6][1] - f[(i + 1) % 6][0] * f[i][1];
+  for (const [a, b, c] of [[1, 2, 3], [1, 3, 4], [4, 5, 0], [4, 0, 1]]) {
+    tri(out, front[a], front[b], front[c], [0, 0, 1]);
+    tri(out, back[a], back[b], back[c], [0, 0, -1]);
+  }
+  for (let i = 0; i < 6; i++) {
+    const j = (i + 1) % 6, dx = f[j][0] - f[i][0], dy = f[j][1] - f[i][1];
+    const outward = area > 0 ? [dy, -dx, 0] : [-dy, dx, 0];   // outward in the plane
+    tri(out, front[i], front[j], back[j], outward);
+    tri(out, front[i], back[j], back[i], outward);
+  }
+}
+const legs = [0, 1, 2].map(k => {
+  const out = [];
+  for (let r = 0; r < RINGS; r++) slab(out, balk(r), k);
+  slab(out, kapje, k);
+  return new Float32Array(out);
+});
+
+/* Wall-clock pose: each cycle of SNAP seconds orbits for M = P - H seconds, landing on a whole
+   number of turns, then holds the magic view for H seconds. yaw 0 + pitch 0 = the magic view. */
+function poseAt(t) {
+  const P = SNAP, H = Math.min(HOLD, P - 6), M = P - H;
+  const tc = ((t % P) + P) % P;
+  if (tc >= M) return [0, 0];
+  const n = Math.max(1, Math.round(ORBIT * M / 360)), e = Math.min(EASE, M / 3), v = 360 * n / (M - e);
+  let yaw;
+  if (tc < e) yaw = v * tc * tc / (2 * e);                       // speeding up
+  else if (tc < M - e) yaw = v * (tc - e / 2);                   // cruising
+  else yaw = 360 * n - v * (M - tc) * (M - tc) / (2 * e);        // settling
+  const s = tc / M;
+  return [yaw, PITCH * Math.sin(Math.PI * s) * Math.sin(2 * Math.PI * s)];
+}
+
+// column-major modelview: orbit the sculpture's centre (depth D/2) at the magic eye distance
+function viewMatrix([yawDeg, pitchDeg]) {
+  const y = yawDeg * Math.PI / 180, x = pitchDeg * Math.PI / 180;
+  const cy = Math.cos(y), sy = Math.sin(y), cx = Math.cos(x), sx = Math.sin(x), c = D / 2, dist = E + c;
+  // Translate(0,0,-dist) * RotX(x) * RotY(y) * Translate(0,0,c)
+  const r = [cy, sx * sy, -cx * sy, 0, cx, sx, sy, -sx * cy, cx * cy];
+  return new Float32Array([r[0], r[1], r[2], 0, r[3], r[4], r[5], 0, r[6], r[7], r[8], 0,
+    r[6] * c, r[7] * c, r[8] * c - dist, 1]);
+}
+// glFrustum
+function frustum(l, r, b, t, n, f) {
+  return new Float32Array([2 * n / (r - l), 0, 0, 0, 0, 2 * n / (t - b), 0, 0,
+    (r + l) / (r - l), (t + b) / (t - b), -(f + n) / (f - n), -1, 0, 0, -2 * f * n / (f - n), 0]);
+}
+
+const cv = document.getElementById('c'), gl = cv.getContext('webgl', { antialias: true });
+function shader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+// the old fixed-function look: a headlight along the view axis, ambient .45 + diffuse .75
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, `
+attribute vec3 normal, pos;
+uniform mat4 mv, proj;
+uniform vec3 colour;
+varying vec3 shade;
+void main() {
+  vec3 n = normalize(mat3(mv) * normal);
+  shade = min(colour * (0.45 + 0.75 * max(n.z, 0.0)), 1.0);
+  gl_Position = proj * mv * vec4(pos, 1.0);
+}`));
+gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, `
+precision mediump float;
+varying vec3 shade;
+void main() { gl_FragColor = vec4(shade, 1.0); }`));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+const u = name => gl.getUniformLocation(prog, name);
+const aNormal = gl.getAttribLocation(prog, 'normal'), aPos = gl.getAttribLocation(prog, 'pos');
+gl.enableVertexAttribArray(aNormal);
+gl.enableVertexAttribArray(aPos);
+const buffers = legs.map(data => {
+  const b = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, b);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  return b;
+});
+gl.enable(gl.DEPTH_TEST);
+gl.clearColor(0, 0, 0, 1);
+
+function resize() {
+  cv.width = Math.round(innerWidth * devicePixelRatio);
+  cv.height = Math.round(innerHeight * devicePixelRatio);
+  gl.viewport(0, 0, cv.width, cv.height);
+  const aspect = cv.width / cv.height, near = D / 4, top = near / (2 * FILL * EYE);
+  gl.uniformMatrix4fv(u('proj'), false, frustum(-top * aspect, top * aspect, -top, top, near, 20 * D));
+}
+addEventListener('resize', resize);
+resize();
+
+function frame() {
+  requestAnimationFrame(frame);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  // wall clock: every screen showing this snaps together
+  gl.uniformMatrix4fv(u('mv'), false, viewMatrix(poseAt(Date.now() / 1000)));
+  for (let k = 0; k < 3; k++) {
+    gl.uniform3fv(u('colour'), COLOURS[k]);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers[k]);
+    gl.vertexAttribPointer(aNormal, 3, gl.FLOAT, false, 24, 0);
+    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 24, 12);
+    gl.drawArrays(gl.TRIANGLES, 0, legs[k].length / 6);
+  }
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

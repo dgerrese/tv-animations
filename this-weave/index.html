@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>th[is] Weave</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Endless zoom into the th[is] logo's weave. The rings are nested at scale 1/2,
+// so the picture repeats exactly every 2x and phase loops 0..1 without a seam.
+// Port of the KDE wallpaper local.thisweave.
+// Knobs (URL params), e.g. index.html?speed=8&huecycle=0&huestep=0
+const q = new URLSearchParams(location.search);
+const num = (name, def) => q.has(name) ? +q.get(name) : def;
+const SPEED = Math.max(num('speed', 10), 1);   // seconds per 2x zoom
+const OUT = num('direction', 0) === 1;         // 0 = zoom in, 1 = zoom out
+const LEFT = '#' + (q.get('colour') || 'f58113');
+const HUE_CYCLE = num('huecycle', 10);         // degrees per second the left leg's hue turns; 0 = off
+const HUE_STEP = num('huestep', 10) / 360;     // degrees of hue per ring inwards, as turns; 0 = off
+
+// Geometry from this-logo.scad, in its triangle coordinates p = (a, b, g):
+// distances to the top, left and bottom edge, a + b + g = S. Ring 0 is the
+// logo's outer ring at S = 12 with bars of width 1. Ring n is ring 0 scaled by
+// 2^-n about the centroid, so the picture repeats exactly every 2x of zoom and
+// phase can loop 0..1. Each bar also runs outward through the ring around it
+// (reach R = 4, the parent ring's band), like the inner ring does in the scad.
+const frag = `
+varying highp vec2 qt_TexCoord0;
+uniform lowp float qt_Opacity;
+uniform highp float aspect;
+uniform highp float phase;
+uniform highp float pixels;
+uniform lowp vec4 colourLeft;
+uniform lowp vec4 colourBottom;
+uniform lowp vec4 colourTop;
+uniform lowp vec4 background;
+uniform highp float hueShift;
+uniform highp float hueStep;
+
+const highp float S = 12.0;
+const highp float R = 4.0;
+
+// signed distance (> 0 inside) to the left leg's bar in ring-local coordinates:
+// the straight part along the left edge, square end R past the bottom edge, plus
+// the bevel that turns up-right (along g = const) through the parent ring
+highp float leftBar(highp vec3 p) {
+    highp float straight = min(min(p.y, 1.0 - p.y), min(p.x, p.z + R));
+    highp float bevel = min(min(p.x + R, -p.x), min(p.z - (S - 1.0), S - p.z));
+    return max(straight, bevel);
+}
+
+// the other legs are the left one turned by rho(a, b, g) = (g, a, b)
+highp vec3 legs(highp vec3 p) {
+    return vec3(leftBar(p), leftBar(p.yzx), leftBar(p.zxy));
+}
+
+// turn a colour round the grey axis by some turns of the colour wheel; keeps
+// its brightness roughly, and greys have no hue so they stay as they are
+lowp vec3 turnHue(lowp vec3 c, highp float turns) {
+    highp float a = turns * 6.2831853;
+    highp vec3 k = vec3(0.57735027);
+    return clamp(c * cos(a) + cross(k, c) * sin(a) + k * dot(k, c) * (1.0 - cos(a)), 0.0, 1.0);
+}
+
+void main() {
+// logo units per screen height: ring 0 fills the height at phase 0
+    highp float u = 2.0 * S / sqrt(3.0) / exp2(phase);
+    highp vec2 xy = vec2(S / 3.0, S / sqrt(3.0)) + (qt_TexCoord0 - 0.5) * vec2(aspect, -1.0) * u;
+    highp vec3 p = vec3(S - (xy.x + xy.y * sqrt(3.0)) / 2.0, xy.x, 0.0);
+    p.z = S - p.x - p.y;
+// k = size of the centroid-scaled triangle through this pixel, 1 = ring 0's edge
+    highp float k = max(1.0 - min(min(p.x, p.y), p.z) / (S / 3.0), 1e-6);
+    highp float n = floor(-log2(k));
+    highp float px = u / pixels * exp2(n);
+    highp vec3 q = S / 3.0 + (p - S / 3.0) * exp2(n);
+// this ring's bars, and the next ring in reaching out into this one
+    highp vec3 own = legs(q);
+    highp vec3 inner = legs(S / 3.0 + (q - S / 3.0) * 2.0) / 2.0;
+    highp vec3 d = max(own, inner);
+// the left leg's hue: over time, plus a step per ring. (ring - phase) is the
+// depth on screen, so the rainbow stays put and the loop stays seamless
+    highp float ring = n + step(own.x, inner.x);
+    lowp vec3 left = turnHue(colourLeft.rgb, hueShift + (ring - phase) * hueStep);
+    highp vec3 c = clamp(d / px + 0.5, 0.0, 1.0);
+// Escher order: at each corner the bevelled leg lies on top of the square end
+    lowp vec3 col = background.rgb;
+    if (q.z >= q.x && q.z >= q.y) {  // top-left corner: left over top
+        col = mix(col, colourBottom.rgb, c.y);
+        col = mix(col, colourTop.rgb, c.z);
+        col = mix(col, left, c.x);
+    } else if (q.x >= q.y) {  // bottom-left corner: bottom over left
+        col = mix(col, colourTop.rgb, c.z);
+        col = mix(col, left, c.x);
+        col = mix(col, colourBottom.rgb, c.y);
+    } else {  // right corner: top over bottom
+        col = mix(col, left, c.x);
+        col = mix(col, colourBottom.rgb, c.y);
+        col = mix(col, colourTop.rgb, c.z);
+    }
+// towards the centre the rings shrink below a pixel: fade to their average colour
+    lowp vec3 average = mix(background.rgb, (left + colourBottom.rgb + colourTop.rgb) / 3.0, 0.5);
+    col = mix(average, col, clamp((2.0 / px - 2.0) / 2.0, 0.0, 1.0));
+    gl_FragColor = vec4(col, 1.0) * qt_Opacity;
+}`;
+
+const cv = document.getElementById('c'), gl = cv.getContext('webgl');
+function shader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+// the same qt_TexCoord0 as Qt's ShaderEffect: (0,0) top-left
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, 'attribute vec2 v; varying highp vec2 qt_TexCoord0;' +
+  'void main() { qt_TexCoord0 = vec2(v.x * 0.5 + 0.5, 0.5 - v.y * 0.5); gl_Position = vec4(v, 0.0, 1.0); }'));
+gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, 'precision highp float;\n' + frag));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+const u = name => gl.getUniformLocation(prog, name);
+const rgba = hex => [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255).concat([1]);
+gl.uniform1f(u('qt_Opacity'), 1);
+gl.uniform1f(u('hueStep'), HUE_STEP);
+gl.uniform4fv(u('colourLeft'), rgba(LEFT));
+gl.uniform4fv(u('colourBottom'), rgba('#bdbcbc'));
+gl.uniform4fv(u('colourTop'), rgba('#6b6e75'));
+gl.uniform4fv(u('background'), rgba('#000000'));
+
+function resize() {
+  cv.width = Math.round(innerWidth * devicePixelRatio);
+  cv.height = Math.round(innerHeight * devicePixelRatio);
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.uniform1f(u('aspect'), cv.width / cv.height);
+  gl.uniform1f(u('pixels'), cv.height);
+}
+addEventListener('resize', resize);
+resize();
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const t = now / 1000, p = t / SPEED % 1;
+  gl.uniform1f(u('phase'), OUT ? 1 - p : p);
+  gl.uniform1f(u('hueShift'), HUE_CYCLE > 0 ? t * HUE_CYCLE / 360 % 1 : 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
