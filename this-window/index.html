@@ -54,10 +54,12 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let W, H, u, cx, win, outside, room, houses, stars, flakes;
 
+// height of a hill's snowy top at screen x; trees and houses stand on this
+const hillY = (base, amp, seed, x) => base - amp * (0.5 + 0.3 * Math.sin((x - win.x) / (W * 0.13) + seed) + 0.2 * Math.sin((x - win.x) / (W * 0.05) + seed * 3));
 function hill(g, base, amp, seed, color) {
   g.fillStyle = color; g.beginPath(); g.moveTo(win.x, win.y + win.h);
   for (let x = 0; x <= win.w; x += u) {
-    const y = base - amp * (0.5 + 0.3 * Math.sin(x / (W * 0.13) + seed) + 0.2 * Math.sin(x / (W * 0.05) + seed * 3));
+    const y = hillY(base, amp, seed, win.x + x);
     g.lineTo(win.x + x, y);
   }
   g.lineTo(win.x + win.w, win.y + win.h); g.fill();
@@ -83,18 +85,21 @@ function resize() {
   const mx = win.x + win.w * 0.78, my = win.y + 14 * u;
   g.drawImage(glowSprite('rgba(220,230,255,0.35)', 'rgba(220,230,255,0)'), mx - 14 * u, my - 14 * u, 28 * u, 28 * u);
   g.fillStyle = '#eef2ff'; g.beginPath(); g.arc(mx, my, 4 * u, 0, 7); g.fill();
-  hill(g, win.y + 50 * u, 14 * u, 1, '#9fb1d6');
-  for (let i = 0; i < 26; i++) pine(g, win.x + rand(0, win.w), win.y + rand(44, 52) * u, rand(4, 7) * u, '#1d2a40');
-  hill(g, win.y + 60 * u, 10 * u, 4, '#c4d2ee');
+  // each pine's foot is planted a little below the snow line of the hill it stands on
+  const back = [win.y + 50 * u, 14 * u, 1], mid = [win.y + 60 * u, 10 * u, 4];
+  hill(g, ...back, '#9fb1d6');
+  for (let i = 0; i < 26; i++) { const x = win.x + rand(0, win.w); pine(g, x, hillY(...back, x) + rand(0.5, 3) * u, rand(4, 7) * u, '#1d2a40'); }
+  hill(g, ...mid, '#c4d2ee');
   // village houses on the middle hill; their windows are drawn lit, per frame
   houses = [];
   for (let i = 0; i < 9; i++) {
-    const x = win.x + win.w * (0.08 + i * 0.1 + rand(-0.02, 0.02)), y = win.y + rand(56, 61) * u, w = rand(5, 8) * u, h = w * 0.7;
+    const x = win.x + win.w * (0.08 + i * 0.1 + rand(-0.02, 0.02)), w = rand(5, 8) * u, h = w * 0.7;
+    const y = Math.max(hillY(...mid, x), hillY(...mid, x + w)) + rand(0.5, 2) * u;   // the lower corner still touches
     g.fillStyle = '#2a2f45'; g.fillRect(x, y - h, w, h);
     g.fillStyle = '#eef3ff'; g.beginPath(); g.moveTo(x - u, y - h); g.lineTo(x + w / 2, y - h - w * 0.45); g.lineTo(x + w + u, y - h); g.fill();
     houses.push({ x, y, w, h, ph: rand(0, 100), on: Math.random() < 0.85 });
   }
-  for (let i = 0; i < 12; i++) pine(g, win.x + rand(0, win.w), win.y + rand(62, 68) * u, rand(7, 11) * u, '#15213a');
+  for (let i = 0; i < 12; i++) { const x = win.x + rand(0, win.w); pine(g, x, hillY(...mid, x) + rand(2, 6) * u, rand(7, 11) * u, '#15213a'); }
   hill(g, win.y + 72 * u, 6 * u, 7, '#e3ebfa');
   stars = Array.from({ length: 70 }, () => ({ x: win.x + rand(0, win.w), y: win.y + rand(0, 34) * u, r: rand(0.12, 0.3) * u, ph: rand(0, 6.28) }));
   flakes = Array.from({ length: SNOW }, () => newFlake(true));
