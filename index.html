@@ -6,25 +6,115 @@
 <title>th[is] TV</title>
 <style>
   body { margin: 0; min-height: 100vh; background: #0b0b0d; color: #eee; font: 18px/1.4 system-ui, sans-serif;
-         display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+         display: flex; flex-direction: column; align-items: center; padding: 48px 16px; box-sizing: border-box; }
   h1 { font-weight: 600; margin: 0 0 8px; }
   p { color: #999; margin: 0 0 32px; text-align: center; }
-  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); width: min(900px, 100%); }
-  a { display: block; padding: 24px; border-radius: 12px; background: #1a1a1f; color: inherit; text-decoration: none; border: 1px solid #2a2a30; }
-  a:hover, a:focus { border-color: #f58113; outline: none; }
-  a span { display: block; color: #999; font-size: 15px; margin-top: 4px; }
+  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); width: min(960px, 100%); }
+  li { padding: 20px; border-radius: 12px; background: #1a1a1f; border: 1px solid #2a2a30; }
+  li:focus-within { border-color: #f58113; }
+  a.open { display: block; color: inherit; text-decoration: none; font-size: 20px; font-weight: 600; }
+  a.open span { display: block; color: #999; font-size: 15px; font-weight: 400; margin-top: 4px; }
+  a.open:focus { outline: none; }
+  details { margin-top: 12px; font-size: 15px; }
+  summary { cursor: pointer; color: #f58113; }
+  label { display: grid; grid-template-columns: 1fr 96px; align-items: center; gap: 8px; margin-top: 8px; color: #ccc; }
+  label small { display: block; color: #777; }
+  input { font: inherit; background: #0b0b0d; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 4px 6px; width: 100%; box-sizing: border-box; }
+  input:invalid { border-color: #e04040; }
+  input[type=checkbox] { width: 20px; height: 20px; justify-self: start; }
+  input[type=color] { padding: 0; height: 32px; }
+  button { margin-top: 12px; font: inherit; font-size: 14px; background: none; color: #999; border: 1px solid #333; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 </style>
 </head>
 <body>
 <h1>th[is] TV</h1>
 <p>Open an animation, cast this tab to the TV (Chrome menu → Cast), then press F11 for fullscreen.</p>
-<ul>
-  <li><a href="hearth/">Hearth<span>Christmas fireplace with th[is] flames</span></a></li>
-  <li><a href="this-snow/">th[is] Snow<span>Logos snowing in three layers</span></a></li>
-  <li><a href="this-fireworks/">th[is] Fireworks<span>Rockets bursting into logos</span></a></li>
-  <li><a href="this-dvd/">th[is] DVD Bounce<span>Bouncing logo, confetti on a corner hit</span></a></li>
-  <li><a href="this-weave/">th[is] Weave<span>Endless zoom into the logo's weave</span></a></li>
-  <li><a href="this-impossible/">th[is] Impossible<span>3D sculpture that snaps to the flat logo</span></a></li>
-</ul>
+<ul id="list"></ul>
+<script>
+// [param, label, default, min, max, step, hint]; type: number unless default is boolean or a #colour
+const ANIMATIONS = [
+  ['hearth', 'Hearth', 'Christmas fireplace with th[is] flames', [
+    ['n', 'Flame logos', 220, 50, 600, 10, 'lower if it stutters'],
+    ['scale', 'Render resolution', 1, 0.25, 1, 0.25, '0.5 is much lighter'],
+  ]],
+  ['this-snow', 'th[is] Snow', 'Logos snowing in three layers', [
+    ['amount', 'Flakes', 80, 10, 400, 10],
+    ['speed', 'Speed', 5, 1, 20, 1],
+    ['size', 'Size', 5, 1, 20, 1, '% of screen width'],
+  ]],
+  ['this-fireworks', 'th[is] Fireworks', 'Rockets bursting into logos', [
+    ['rate', 'Rockets', 30, 1, 120, 1, 'per minute'],
+    ['sparks', 'Logos per burst', 60, 10, 200, 10],
+    ['size', 'Size', 2, 0.5, 10, 0.5, '% of screen width'],
+    ['crossette', 'Crossette shells', 20, 0, 100, 5, '%'],
+    ['double', 'Double bursts', 20, 0, 100, 5, '%'],
+  ]],
+  ['this-dvd', 'th[is] DVD Bounce', 'Bouncing logo, confetti on a corner hit', [
+    ['speed', 'Speed', 5, 1, 20, 1],
+    ['size', 'Size', 14, 5, 50, 1, '% of screen width'],
+  ]],
+  ['this-weave', 'th[is] Weave', "Endless zoom into the logo's weave", [
+    ['speed', 'Seconds per 2x zoom', 10, 1, 60, 1, 'higher is slower'],
+    ['direction', 'Zoom out', false],
+    ['huecycle', 'Hue cycle', 10, 0, 90, 1, '°/s, 0 = off'],
+    ['huestep', 'Hue step', 10, 0, 90, 1, '° per ring, 0 = off'],
+    ['colour', 'Colour', '#f58113'],
+  ]],
+  ['this-impossible', 'th[is] Impossible', '3D sculpture that snaps to the flat logo', [
+    ['rings', 'Rings', 2, 2, 8, 1, '2 = the real logo'],
+    ['orbit', 'Orbit speed', 12, 1, 60, 1, '°/s'],
+    ['snap', 'Cycle', 30, 10, 300, 5, 's per orbit + hold'],
+    ['hold', 'Hold', 1, 1, 20, 1, 's on the flat logo'],
+    ['colour', 'Colour', '#f58113'],
+  ]],
+];
+
+// remembered per browser; the page works without it
+const load = k => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+const list = document.getElementById('list');
+for (const [dir, title, blurb, opts] of ANIMATIONS) {
+  const li = document.createElement('li'), saved = load('tv:' + dir);
+  const a = Object.assign(document.createElement('a'), { className: 'open' });
+  a.append(title, Object.assign(document.createElement('span'), { textContent: blurb }));
+  const det = document.createElement('details');
+  det.innerHTML = '<summary>Settings</summary>';
+  const inputs = opts.map(([key, label, def, min, max, step, hint]) => {
+    const l = document.createElement('label'), name = document.createElement('span'), i = document.createElement('input');
+    name.textContent = label;
+    if (hint) name.append(Object.assign(document.createElement('small'), { textContent: hint }));
+    if (typeof def === 'boolean') { i.type = 'checkbox'; i.checked = saved[key] ?? def; }
+    else if (String(def).startsWith('#')) { i.type = 'color'; i.value = saved[key] ?? def; }
+    else Object.assign(i, { type: 'number', min, max, step, value: saved[key] ?? def });
+    l.append(name, i); det.append(l);
+    return { key, def, i };
+  });
+  const reset = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Reset to defaults' });
+  det.append(reset);
+
+  // only non-default values go into the link, in the formats the animations read
+  function update() {
+    const q = new URLSearchParams(), keep = {};
+    for (const { key, def, i } of inputs) {
+      const v = i.type === 'checkbox' ? i.checked : i.type === 'color' ? i.value : +i.value;
+      if (i.type === 'number' && (i.value === '' || !i.checkValidity())) continue;
+      if (v === def) continue;
+      keep[key] = v;
+      q.set(key, i.type === 'checkbox' ? '1' : i.type === 'color' ? v.slice(1) : v);
+    }
+    save('tv:' + dir, keep);
+    a.href = dir + '/' + (q.size ? '?' + q : '');
+  }
+  det.addEventListener('input', update);
+  reset.onclick = () => {
+    for (const { def, i } of inputs) i.type === 'checkbox' ? i.checked = def : i.value = def;
+    update();
+  };
+  update();
+  li.append(a, det);
+  list.append(li);
+}
+</script>
 </body>
 </html>
