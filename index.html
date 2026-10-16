@@ -21,18 +21,42 @@
   label small { display: block; color: #777; }
   input { font: inherit; background: #0b0b0d; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 4px 6px; width: 100%; box-sizing: border-box; }
   input:invalid { border-color: #e04040; }
+  select { font: inherit; background: #0b0b0d; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 4px 6px; width: 100%; }
   input[type=checkbox] { width: 20px; height: 20px; justify-self: start; }
   input[type=color] { padding: 0; height: 32px; }
   .free { margin: -16px 0 24px; color: #999; font-size: 15px; display: flex; gap: 8px; align-items: center; }
   .free input { width: 20px; height: 20px; }
+  .catt { width: min(960px, 100%); margin-top: 32px; padding: 20px; border-radius: 12px; background: #1a1a1f; border: 1px solid #2a2a30; box-sizing: border-box; color: #ccc; }
+  .catt summary { font-size: 18px; }
+  .catt ol { padding-left: 20px; }
+  .catt li { padding: 0; background: none; border: 0; margin: 10px 0; }
+  .catt label { grid-template-columns: auto 220px; justify-content: start; }
+  code { font: 14px ui-monospace, monospace; background: #0b0b0d; border: 1px solid #333; border-radius: 6px; padding: 2px 6px; color: #eee; word-break: break-all; }
+  pre code { display: block; padding: 8px 10px; white-space: pre-wrap; }
+  .cmd { display: block; margin-top: 8px; }
+  .cmd[hidden] { display: none; }
   button { margin-top: 12px; font: inherit; font-size: 14px; background: none; color: #999; border: 1px solid #333; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 </style>
 </head>
 <body>
 <h1>th[is] TV</h1>
-<p>Open an animation, cast this tab to the TV (Chrome menu → Cast), then press F11 for fullscreen.</p>
+<p>Open an animation, cast this tab to the TV (Chrome menu → Cast), then press F11 for fullscreen.<br>Or let the Chromecast run it on its own, without a tab: see the bottom of this page.</p>
 <label class="free"><input type="checkbox" id="free"> No limits: allow any number (extreme values can make the TV stutter or freeze)</label>
 <ul id="list"></ul>
+<details class="catt">
+<summary>Cast without keeping a tab open</summary>
+<p style="text-align:left;margin:12px 0 0">With <a href="https://github.com/skorokithakis/catt" style="color:#f58113">catt</a>, the Chromecast opens the animation in its own browser. Once it runs, you can close everything on your computer; it keeps playing until you stop it or cast something else. Your computer only has to be on the same Wi-Fi as the Chromecast to start it.</p>
+<ol>
+  <li>Install catt (needs Python): <pre><code>pipx install catt</code></pre> or <code>pip install catt</code>.</li>
+  <li>Find your Chromecast's name: <pre><code>catt scan</code></pre></li>
+  <li><label>Type that name here (remembered in this browser): <input type="text" id="device" placeholder="Living Room TV"></label></li>
+  <li><label>Pick the animation: <select id="pick"></select></label>
+    The command below includes its settings from above. Copy it, paste it in a terminal and run it (or use <b>Copy cast command</b> on an animation above).
+    <pre><code id="example"></code></pre><button type="button" id="copyPick">Copy</button></li>
+  <li>To stop: <pre><code id="stop"></code></pre></li>
+</ol>
+<p style="text-align:left;margin:0">The Chromecast is much less powerful than a computer, so an animation can stutter on it. Lowering <b>Render resolution</b> (Hearth) or the number of logos helps; Weave and Impossible are the heaviest.</p>
+</details>
 <script>
 // [param, label, default, min, max, step, hint]; type: number unless default is boolean or a #colour
 const ANIMATIONS = [
@@ -77,9 +101,32 @@ const load = k => { try { return JSON.parse(localStorage.getItem(k)) || {}; } ca
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
 const list = document.getElementById('list'), free = document.getElementById('free'), updates = [];
+// catt commands for casting without a tab; the device name is optional when there's only one Chromecast
+const device = document.getElementById('device');
+device.value = (() => { try { return localStorage.getItem('tv:device') || ''; } catch { return ''; } })();
+const quote = v => `'${v.replace(/'/g, `'\\''`)}'`;
+const catt = (...args) => ['catt', ...(device.value.trim() ? ['-d', quote(device.value.trim())] : []), ...args].join(' ');
+// the picked animation's command follows its tile's link, so settings changes show up right away
+const pick = document.getElementById('pick'), example = document.getElementById('example'), links = {};
+for (const [dir, title] of ANIMATIONS) pick.add(new Option(title, dir));
+pick.value = (() => { try { return localStorage.getItem('tv:pick'); } catch {} })() || 'hearth';
+if (!pick.value) pick.selectedIndex = 0;
+function updateHelp() {
+  const href = links[pick.value]?.href || new URL(pick.value + '/', location.href).href;
+  example.textContent = catt('cast_site', quote(href));
+  document.getElementById('stop').textContent = catt('stop');
+}
+pick.onchange = () => { try { localStorage.setItem('tv:pick', pick.value); } catch {} updateHelp(); };
+device.oninput = () => { try { localStorage.setItem('tv:device', device.value); } catch {} updateHelp(); };
+const copyPick = document.getElementById('copyPick');
+copyPick.onclick = async () => {
+  try { await navigator.clipboard.writeText(example.textContent); copyPick.textContent = 'Copied!'; setTimeout(() => copyPick.textContent = 'Copy', 1500); }
+  catch { getSelection().selectAllChildren(example); }   // no clipboard access: select it for Ctrl+C
+};
+updateHelp();
 for (const [dir, title, blurb, opts] of ANIMATIONS) {
   const li = document.createElement('li'), saved = load('tv:' + dir);
-  const a = Object.assign(document.createElement('a'), { className: 'open' });
+  const a = links[dir] = Object.assign(document.createElement('a'), { className: 'open' });
   a.append(title, Object.assign(document.createElement('span'), { textContent: blurb }));
   const det = document.createElement('details');
   det.innerHTML = '<summary>Settings</summary>';
@@ -95,6 +142,14 @@ for (const [dir, title, blurb, opts] of ANIMATIONS) {
   });
   const reset = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Reset to defaults' });
   det.append(reset);
+  // a.href reads back as the full URL, settings included
+  const copy = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Copy cast command' });
+  const shown = Object.assign(document.createElement('code'), { className: 'cmd', hidden: true });
+  copy.onclick = async () => {
+    const cmd = catt('cast_site', quote(a.href));
+    try { await navigator.clipboard.writeText(cmd); copy.textContent = 'Copied!'; setTimeout(() => copy.textContent = 'Copy cast command', 1500); }
+    catch { shown.textContent = cmd; shown.hidden = false; }   // no clipboard access: show it to copy by hand
+  };
 
   // only non-default values go into the link, in the formats the animations read
   function update() {
@@ -108,6 +163,7 @@ for (const [dir, title, blurb, opts] of ANIMATIONS) {
     }
     save('tv:' + dir, keep);
     a.href = dir + '/' + (q.size ? '?' + q : '');
+    updateHelp();
   }
   det.addEventListener('input', update);
   reset.onclick = () => {
@@ -115,7 +171,7 @@ for (const [dir, title, blurb, opts] of ANIMATIONS) {
     update();
   };
   update(); updates.push(update);
-  li.append(a, det);
+  li.append(a, det, copy, shown);
   list.append(li);
 }
 // No limits: drop min/max/step from every number field, so any value goes into the links
