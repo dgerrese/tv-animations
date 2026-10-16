@@ -11,5 +11,5 @@ Each animation is one self-contained `<name>/index.html` with no build step. To 
 | [th[is] Weave](this-weave/) | Endless zoom into the logo's weave. `?speed=` s per 2x zoom (10), `?direction=1` zooms out, `?huecycle=` °/s (10), `?huestep=` ° per ring (10), `?colour=` hex without # (f58113). |
 | [th[is] Snow](this-snow/) | Logos snowing in three layers. `?amount=` (80), `?speed=` (5), `?size=` % of width (5). |
 | [th[is] Fireworks](this-fireworks/) | Rockets bursting into logos. `?rate=` per minute (30), `?sparks=` (60), `?size=` (2), `?crossette=` % (20), `?double=` % (20). |
-| [th[is] Window](this-window/) | Snowy night outside a window, a th[is] Christmas star and candles. `?snow=` flakes (220), `?wind=` (1, 0 = still), `?scale=` render resolution (1). |
+| [th[is] Window](this-window/) | Snowy night outside a window, a th[is] Christmas star, candles, a sledder and a th[is] Santa. `?snow=` flakes (220), `?wind=` (1, 0 = still), `?sled=` s between sledders (30, 0 = none), `?santa=` s between Santa fly-bys (60, 0 = none), `?scale=` render resolution (1). |
 | [th[is] Impossible](this-impossible/) | 3D logo sculpture that orbits, then snaps to the flat logo. `?rings=` 2–8 (2), `?orbit=` °/s (12), `?snap=` s per cycle (30), `?hold=` s (1), `?colour=` (f58113). |

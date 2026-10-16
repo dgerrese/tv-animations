@@ -20,12 +20,14 @@
 <script>
 // Looking out of a window on a snowy Christmas night: a village with lit windows on the
 // hills, snow drifting past, candles on the sill and a glowing th[is] Christmas star in the window.
-// Knobs (URL params), e.g. index.html?snow=300&wind=2
+// Knobs (URL params), e.g. index.html?snow=300&wind=2&sled=20&santa=30
 const q = new URLSearchParams(location.search);
 const num = (name, def) => q.has(name) ? +q.get(name) : def;
 const SNOW = num('snow', 220);     // snowflakes
 const WIND = num('wind', 1);       // how hard the wind pushes the snow sideways
 const SCALE = num('scale', 1);     // render resolution
+const SLED = num('sled', 30);      // seconds between sledders, on average; 0 = none
+const SANTA = num('santa', 60);    // seconds between Santa fly-bys, on average; 0 = none
 
 const faces = ['left', 'bottom', 'top'].map(id => new Path2D(document.getElementById(id).getAttribute('d')));
 const LW = 120, LH = 138.564;
@@ -52,7 +54,7 @@ const flake = glowSprite('rgba(255,255,255,1)', 'rgba(255,255,255,0)');
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-let W, H, u, cx, win, outside, room, houses, stars, flakes;
+let W, H, u, cx, win, outside, near, room, houses, stars, flakes, mid;
 
 // height of a hill's snowy top at screen x; trees and houses stand on this
 const hillY = (base, amp, seed, x) => base - amp * (0.5 + 0.3 * Math.sin((x - win.x) / (W * 0.13) + seed) + 0.2 * Math.sin((x - win.x) / (W * 0.05) + seed * 3));
@@ -86,7 +88,8 @@ function resize() {
   g.drawImage(glowSprite('rgba(220,230,255,0.35)', 'rgba(220,230,255,0)'), mx - 14 * u, my - 14 * u, 28 * u, 28 * u);
   g.fillStyle = '#eef2ff'; g.beginPath(); g.arc(mx, my, 4 * u, 0, 7); g.fill();
   // each pine's foot is planted a little below the snow line of the hill it stands on
-  const back = [win.y + 50 * u, 14 * u, 1], mid = [win.y + 60 * u, 10 * u, 4];
+  const back = [win.y + 50 * u, 14 * u, 1];
+  mid = [win.y + 60 * u, 10 * u, 4];
   hill(g, ...back, '#9fb1d6');
   for (let i = 0; i < 26; i++) { const x = win.x + rand(0, win.w); pine(g, x, hillY(...back, x) + rand(0.5, 3) * u, rand(4, 7) * u, '#1d2a40'); }
   hill(g, ...mid, '#c4d2ee');
@@ -99,6 +102,8 @@ function resize() {
     g.fillStyle = '#eef3ff'; g.beginPath(); g.moveTo(x - u, y - h); g.lineTo(x + w / 2, y - h - w * 0.45); g.lineTo(x + w + u, y - h); g.fill();
     houses.push({ x, y, w, h, ph: rand(0, 100), on: Math.random() < 0.85 });
   }
+  // the front trees and hill get their own layer, drawn after the lit house windows so those stay behind them
+  [near, g] = canvas(W, H);
   for (let i = 0; i < 12; i++) { const x = win.x + rand(0, win.w); pine(g, x, hillY(...mid, x) + rand(2, 6) * u, rand(7, 11) * u, '#15213a'); }
   hill(g, win.y + 72 * u, 6 * u, 7, '#e3ebfa');
   stars = Array.from({ length: 70 }, () => ({ x: win.x + rand(0, win.w), y: win.y + rand(0, 34) * u, r: rand(0.12, 0.3) * u, ph: rand(0, 6.28) }));
@@ -161,7 +166,155 @@ function newFlake(anywhere) {
 }
 addEventListener('resize', resize); resize();
 
-let last = performance.now(), t = 0;
+// now and then someone sleds along the middle hill: faster downhill, slower uphill
+const COATS = [['#c0392b', '#f2f2f2'], ['#2e7d4f', '#d63c3c'], ['#d4a017', '#2f5fb3'], ['#3a6fd8', '#f0c419']];
+let sled = null, nextSled = 8;
+const spray = [];
+function drawSledder(dt) {
+  if (!sled && SLED > 0 && t > nextSled) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    sled = { dir, x: dir > 0 ? win.x - 5 * u : win.x + win.w + 5 * u, v: 10 * u, coat: COATS[Math.floor(Math.random() * COATS.length)] };
+  }
+  const z = 1.1 * u;
+  if (sled) {
+    // rides a little down the slope, below the houses, so it passes in front of them
+    const s = sled, step = 0.5 * u, y = hillY(...mid, s.x) + 3 * u, dy = hillY(...mid, s.x + s.dir * step) + 3 * u - y;   // dy > 0: downhill ahead
+    s.v = Math.max(5 * u, Math.min(40 * u, s.v + (dy / step * 60 * u - s.v * 0.15) * dt));
+    s.x += s.dir * s.v * dt;
+    if (s.x < win.x - 6 * u || s.x > win.x + win.w + 6 * u) { sled = null; nextSled = t + SLED * rand(0.6, 1.4); }
+    else {
+      if (s.v > 14 * u && Math.random() < 0.6)
+        spray.push({ x: s.x - s.dir * 1.6 * z, y, vx: -s.dir * rand(2, 6) * u, vy: -rand(2, 5) * u, age: 0 });
+      ctx.save(); ctx.translate(s.x, y); ctx.scale(s.dir, 1); ctx.rotate(Math.atan2(dy, step));
+      const [coat, hat] = s.coat;
+      ctx.strokeStyle = '#6b4226'; ctx.lineWidth = 0.25 * z; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-1.6 * z, -0.1 * z); ctx.lineTo(1.3 * z, -0.1 * z); ctx.quadraticCurveTo(1.9 * z, -0.1 * z, 1.8 * z, -0.8 * z); ctx.stroke();
+      ctx.fillStyle = '#a5502c'; ctx.fillRect(-1.6 * z, -0.6 * z, 3 * z, 0.35 * z);
+      ctx.fillStyle = '#2d3f6b'; ctx.fillRect(-0.4 * z, -1 * z, 1.6 * z, 0.45 * z);                 // legs, forward
+      ctx.fillStyle = coat; ctx.beginPath(); ctx.roundRect(-1 * z, -2.4 * z, 1 * z, 1.85 * z, 0.35 * z); ctx.fill();
+      ctx.strokeStyle = coat; ctx.lineWidth = 0.35 * z;                                          // arm, holding the rope
+      ctx.beginPath(); ctx.moveTo(-0.5 * z, -1.9 * z); ctx.lineTo(0.9 * z, -1.2 * z); ctx.stroke();
+      ctx.strokeStyle = 'rgba(230,220,200,0.8)'; ctx.lineWidth = 0.1 * z;
+      ctx.beginPath(); ctx.moveTo(0.9 * z, -1.2 * z); ctx.lineTo(1.75 * z, -0.75 * z); ctx.stroke();
+      ctx.strokeStyle = hat; ctx.lineWidth = 0.3 * z;                                            // scarf, flapping behind
+      ctx.beginPath(); ctx.moveTo(-0.6 * z, -2.35 * z); ctx.quadraticCurveTo(-1.3 * z, -2.6 * z + Math.sin(t * 14) * 0.2 * z, -1.9 * z, -2.3 * z + Math.sin(t * 14 + 1) * 0.3 * z); ctx.stroke();
+      ctx.fillStyle = '#efc6a2'; ctx.beginPath(); ctx.arc(-0.5 * z, -2.85 * z, 0.45 * z, 0, 7); ctx.fill();
+      ctx.fillStyle = hat; ctx.beginPath(); ctx.arc(-0.5 * z, -2.95 * z, 0.47 * z, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.arc(-0.85 * z, -3.4 * z, 0.18 * z, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+  }
+  // snow kicked up behind the sled
+  ctx.fillStyle = '#fff';
+  for (let i = spray.length - 1; i >= 0; i--) {
+    const p = spray[i];
+    p.age += dt;
+    if (p.age > 0.6) { spray.splice(i, 1); continue; }
+    p.vy += 12 * u * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    ctx.globalAlpha = 0.8 * (1 - p.age / 0.6);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 0.25 * u, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+// Santa in a th[is] sleigh, pulled by two reindeer, flying across the sky now and then
+// the logo in solid white on the red sleigh
+const badge = logoSprite(['#ffffff', '#ffffff', '#ffffff'], null, 128);
+let santa = null, nextSanta = 20;
+const trail = [];
+function reindeer(z, x, legs, lead) {
+  ctx.fillStyle = '#8a5a3c';
+  ctx.beginPath(); ctx.ellipse(x, -1.2 * z, 1.1 * z, 0.5 * z, 0, 0, 7); ctx.fill();         // body
+  ctx.strokeStyle = '#8a5a3c'; ctx.lineWidth = 0.22 * z; ctx.lineCap = 'round';
+  for (const [dx, ph] of [[-0.7, 0], [0.7, Math.PI]]) {                                        // galloping legs
+    const a = Math.sin(legs + ph) * 0.6;
+    ctx.beginPath(); ctx.moveTo(x + dx * z, -1 * z); ctx.lineTo(x + dx * z + Math.sin(a) * 0.9 * z, -1 * z + Math.cos(a) * 0.9 * z); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x + 0.9 * z, -1.4 * z); ctx.lineTo(x + 1.4 * z, -2.1 * z); ctx.stroke();   // neck
+  ctx.beginPath(); ctx.ellipse(x + 1.6 * z, -2.2 * z, 0.45 * z, 0.28 * z, 0.3, 0, 7); ctx.fill();         // head
+  ctx.strokeStyle = '#d9c39a'; ctx.lineWidth = 0.12 * z;                                        // antlers
+  ctx.beginPath(); ctx.moveTo(x + 1.4 * z, -2.4 * z); ctx.lineTo(x + 1.1 * z, -3 * z); ctx.lineTo(x + 0.8 * z, -3.1 * z);
+  ctx.moveTo(x + 1.18 * z, -2.85 * z); ctx.lineTo(x + 1.35 * z, -3.2 * z); ctx.stroke();
+  if (lead) {
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6;
+    ctx.drawImage(warm, x + 2 * z - 0.9 * z, -2.1 * z - 0.9 * z, 1.8 * z, 1.8 * z);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = lead ? '#ff3030' : '#3a2416';
+  ctx.beginPath(); ctx.arc(x + 2 * z, -2.1 * z, 0.16 * z, 0, 7); ctx.fill();                  // nose
+}
+function drawSanta(dt) {
+  if (!santa && SANTA > 0 && t > nextSanta) {
+    const dir = 1;   // always left to right, so the sleigh's point and the logo point the same way
+    santa = { dir, x: dir > 0 ? win.x - 26 * u : win.x + win.w + 26 * u, y: win.y + rand(12, 17) * u, ph: rand(0, 6.28) };   // high enough to clear the window star
+  }
+  if (santa) {
+    const s = santa, z = 2.2 * u;
+    s.x += s.dir * 16 * u * dt;
+    if (s.x < win.x - 28 * u || s.x > win.x + win.w + 28 * u) { santa = null; nextSanta = t + SANTA * rand(0.7, 1.3); }
+    else {
+      const y = s.y + Math.sin(t * 1.4 + s.ph) * 1.5 * u, tilt = Math.cos(t * 1.4 + s.ph) * 0.06;
+      if (Math.random() < 0.7) trail.push({ x: s.x - s.dir * 2.5 * z + rand(-0.5, 0.5) * z, y: y - 0.3 * z + rand(-0.6, 0.6) * z, age: 0 });
+      ctx.save(); ctx.translate(s.x, y); ctx.scale(s.dir, 1); ctx.rotate(-tilt);
+      // reins from the sleigh to the reindeer
+      ctx.strokeStyle = 'rgba(230,200,140,0.8)'; ctx.lineWidth = 0.08 * z;
+      ctx.beginPath(); ctx.moveTo(2.5 * z, -1.8 * z); ctx.lineTo(4.8 * z, -1.3 * z); ctx.lineTo(8.2 * z, -1.3 * z); ctx.stroke();
+      reindeer(z, 5.4 * z, t * 9, false);
+      reindeer(z, 8.8 * z, t * 9 + 1.5, true);
+      // curled backrest at the back of the sleigh, behind Santa
+      ctx.fillStyle = '#b3121f';
+      ctx.beginPath(); ctx.moveTo(-2.26 * z, -3.6 * z); ctx.quadraticCurveTo(-2.55 * z, -4.75 * z, -1.9 * z, -4.95 * z);
+      ctx.quadraticCurveTo(-2.1 * z, -4.2 * z, -1.4 * z, -3.2 * z); ctx.lineTo(-2.26 * z, -3.2 * z); ctx.fill();
+      // Santa: hat, face, beard, waving arm, sitting down inside the sleigh
+      ctx.save(); ctx.translate(-0.6 * z, -0.55 * z);
+      ctx.fillStyle = '#c8102e'; ctx.beginPath(); ctx.roundRect(-1.1 * z, -2.9 * z, 1.4 * z, 1.8 * z, 0.4 * z); ctx.fill();
+      ctx.strokeStyle = '#c8102e'; ctx.lineWidth = 0.35 * z; ctx.lineCap = 'round';
+      const wave = Math.sin(t * 6) * 0.4;
+      ctx.beginPath(); ctx.moveTo(-0.2 * z, -2.5 * z); ctx.lineTo(-0.2 * z + Math.sin(-0.4 + wave) * 1.1 * z, -2.5 * z - Math.cos(-0.4 + wave) * 1.1 * z); ctx.stroke();
+      ctx.fillStyle = '#f2f2f2'; ctx.beginPath(); ctx.arc(-0.2 * z + Math.sin(-0.4 + wave) * 1.1 * z, -2.5 * z - Math.cos(-0.4 + wave) * 1.1 * z, 0.22 * z, 0, 7); ctx.fill();
+      ctx.fillStyle = '#efc6a2'; ctx.beginPath(); ctx.arc(-0.35 * z, -3.35 * z, 0.45 * z, 0, 7); ctx.fill();
+      ctx.fillStyle = '#f7f7f7'; ctx.beginPath(); ctx.arc(-0.25 * z, -3.05 * z, 0.42 * z, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = '#c8102e'; ctx.beginPath(); ctx.moveTo(-0.85 * z, -3.55 * z); ctx.lineTo(0.15 * z, -3.55 * z); ctx.lineTo(-0.9 * z, -4.4 * z); ctx.fill();
+      ctx.fillStyle = '#f7f7f7'; ctx.fillRect(-0.9 * z, -3.7 * z, 1.1 * z, 0.22 * z);
+      ctx.beginPath(); ctx.arc(-0.95 * z, -4.4 * z, 0.18 * z, 0, 7); ctx.fill();
+      ctx.restore();
+      // the back of the sleigh is the th[is] triangle (straight back, top sloping down); in front
+      // of it the body runs on into a long nose that curls up. The logo sits on the triangle's centroid.
+      ctx.strokeStyle = '#e8b923'; ctx.lineWidth = 0.18 * z; ctx.lineCap = 'round';
+      // runner: flat underneath, curling up at the front; three struts up to the body
+      ctx.beginPath(); ctx.moveTo(-2.5 * z, 0.1 * z); ctx.lineTo(1.9 * z, 0.1 * z);
+      ctx.quadraticCurveTo(3.1 * z, 0.1 * z, 2.9 * z, -1.2 * z); ctx.quadraticCurveTo(2.8 * z, -1.8 * z, 2.4 * z, -1.5 * z); ctx.stroke();
+      ctx.beginPath();
+      for (const x of [-1.7, -0.2, 1.3]) { ctx.moveTo(x * z, -0.4 * z); ctx.lineTo(x * z, 0.1 * z); }
+      ctx.stroke();
+      ctx.fillStyle = '#b3121f';
+      ctx.beginPath(); ctx.moveTo(-2.26 * z, -3.75 * z);
+      ctx.lineTo(-0.3 * z, -2.62 * z);                                              // the triangle's top edge
+      ctx.quadraticCurveTo(0.8 * z, -2 * z, 1.6 * z, -2.05 * z);                    // running on, flatter
+      ctx.quadraticCurveTo(2 * z, -2.1 * z, 2.2 * z, -2.7 * z);                     // up into the curl
+      ctx.quadraticCurveTo(2.35 * z, -3.15 * z, 2 * z, -3.1 * z);                   // curl tip
+      ctx.quadraticCurveTo(2.75 * z, -2.6 * z, 2.6 * z, -1.6 * z);                  // outside of the curl
+      ctx.quadraticCurveTo(2.4 * z, -0.6 * z, 1.2 * z, -0.55 * z);                  // rounded front bottom
+      ctx.lineTo(-2.26 * z, -0.25 * z); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#e8b923'; ctx.lineWidth = 0.1 * z;                         // gold scroll on the curl
+      ctx.beginPath(); ctx.moveTo(1.2 * z, -1.2 * z); ctx.quadraticCurveTo(2.2 * z, -1.2 * z, 2.3 * z, -2.3 * z); ctx.quadraticCurveTo(2.35 * z, -2.75 * z, 2.1 * z, -2.85 * z); ctx.stroke();
+      const lh = 2.3 * z, k = lh * 1.8;   // the sprite is centred on the logo's box, 20/LH of its height right of the centroid
+      ctx.drawImage(badge, -1.25 * z + 20 / LH * lh - k / 2, -2 * z - k / 2, k, k);
+      ctx.restore();
+    }
+  }
+  // gold sparkles left behind
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = trail.length - 1; i >= 0; i--) {
+    const p = trail[i];
+    p.age += dt;
+    if (p.age > 1.5) { trail.splice(i, 1); continue; }
+    ctx.globalAlpha = 0.7 * (1 - p.age / 1.5);
+    ctx.fillStyle = '#ffd77a'; ctx.beginPath(); ctx.arc(p.x, p.y + p.age * 2 * u, 0.22 * u, 0, 7); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+}
+// ?t= jumps ahead (for previews)
+let last = performance.now(), t = num('t', 0);
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
@@ -169,6 +322,8 @@ function frame(now) {
   ctx.save(); ctx.beginPath(); ctx.rect(win.x, win.y, win.w, win.h); ctx.clip();
   ctx.fillStyle = '#fff';
   for (const s of stars) { ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(t * 0.7 + s.ph)); ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  drawSanta(dt);
   // village windows: warm, now and then someone switches a light off or on
   for (const h of houses) {
     const on = h.on !== (Math.sin(t * 0.05 + h.ph) > 0.97);
@@ -177,6 +332,9 @@ function frame(now) {
     ctx.fillRect(h.x + h.w * 0.18, h.y - h.h * 0.65, h.w * 0.22, h.h * 0.3);
     ctx.fillRect(h.x + h.w * 0.6, h.y - h.h * 0.65, h.w * 0.22, h.h * 0.3);
   }
+  ctx.globalAlpha = 1;
+  drawSledder(dt);   // behind the front trees and hill
+  ctx.drawImage(near, 0, 0);
   // snow: far flakes small and slow, near ones big and fast; gusts of wind come and go
   const gust = WIND * (0.6 + 0.6 * Math.sin(t * 0.21) + 0.3 * Math.sin(t * 0.53)) * u * 3;
   for (const f of flakes) {
