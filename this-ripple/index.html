@@ -1,0 +1,216 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>th[is] Ripple</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  svg { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<!-- the logo's legs as a mask: left = red, bottom = green, top = blue, with a 12-unit transparent pad -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -150.564 144 162.564" width="144" height="162.564">
+<path id="left" fill="#ff0000" fill-rule="evenodd" d="M 10.1,-132.733 L 0,-138.564 L 0,-127.017 L 0.0999908,-126.959 z M 10.1,-51.9038 L 10,-51.9615 L 10,-98.1495 L 10.1,-98.0918 L 10.1,-109.639 L 10,-109.697 L 20,-115.47 L 20.1,-115.412 L 30.1,-121.186 L 19.9,-127.075 L 9.89999,-121.301 L 10,-121.244 L 0,-115.47 L 0,-57.6195 L 10.1,-51.7883 z M 30.1,-51.9038 L 30.1,-52.0193 L 30,-51.9615 L 30,-86.6025 L 30.1,-86.5448 L 30.1,-98.0918 L 30,-98.1495 L 40,-103.923 L 40.1,-103.865 L 50.1,-109.639 L 39.9,-115.528 L 29.9,-109.754 L 30,-109.697 L 20,-103.923 L 19.9,-103.981 L 19.9,-92.4338 L 20,-92.376 L 20,-46.188 L 19.9,-46.2458 L 19.9,-46.0148 z M 10.1,-28.8098 L 10,-28.8675 L 10,-40.4145 L 10.1,-40.3568 L 10.1,-40.4723 L 0,-46.3035 L 0,-34.5255 L 10.1,-28.6943 z M 30.1,-28.8098 L 30.1,-28.9252 L 30,-28.8675 L 30,-40.4145 L 30.1,-40.4722 L 30.1,-40.5877 L 19.9,-34.6987 L 20,-34.641 L 20,-23.094 L 19.9,-23.1517 L 19.9,-22.9208 z M 10,-5.7735 L 10,-17.3205 L 10.1,-17.2628 L 10.1,-17.3783 L 0,-23.2095 L 0,-11.4315 L 9.90001,-5.71576 z"/>
+<path id="bottom" fill="#00ff00" fill-rule="evenodd" d="M 80,-69.282 L 90,-75.0555 L 90,-74.9401 L 90.2,-75.0555 L 80,-80.9445 L 79.9,-80.8868 L 80,-80.829 L 70,-75.0555 L 69.9,-75.1133 L 69.8,-75.0555 L 80,-69.1666 z M 110.1,-63.5663 L 110.1,-74.9978 L 110,-75.0555 L 100,-69.282 L 100,-69.3975 L 99.9,-69.3398 L 99.9,-57.6773 z M 30,-40.299 L 30,-40.4145 L 70,-63.5085 L 70,-63.3931 L 70.2,-63.5085 L 60,-69.3975 L 59.9,-69.3398 L 60,-69.282 L 30,-51.9615 L 30,-52.077 L 20,-46.3035 L 20,-46.188 L 10,-51.9615 L 10,-52.077 L 0,-57.8505 L 0,-46.0725 L 10,-40.299 L 10,-40.4145 L 20,-34.641 L 20,-34.5255 z M 90.1,-52.0193 L 90.1,-63.6817 L 90,-63.624 L 90,-63.5085 L 80,-57.735 L 80,-57.8505 L 79.9,-57.7928 L 79.9,-46.1303 z M 70.1,-40.4722 L 70.1,-52.1347 L 70,-52.077 L 70,-51.9615 L 30,-28.8675 L 30,-28.983 L 20,-23.2095 L 20,-23.094 L 10,-28.8675 L 10,-28.983 L 0,-34.7565 L 0,-22.9785 L 10,-17.205 L 10,-17.3205 L 20,-11.547 z M 10,-5.7735 L 10,-5.88896 L 0,-11.6625 L 0,-0 z"/>
+<path id="top" fill="#0000ff" fill-rule="evenodd" d="M 40.1,-115.412 L 9.90001,-132.848 L 0,-127.133 L 0,-127.017 L 10,-121.244 L 9.90001,-121.186 L 10,-121.128 L 20,-126.902 L 29.8,-121.244 L 19.8,-115.47 L 19.9,-115.412 L 20,-115.47 L 30,-109.697 L 29.9,-109.639 L 30,-109.581 z M 20.1,-103.981 L 20,-103.923 L 10,-109.697 L 10.1,-109.754 L 9.89999,-109.87 L 9.89999,-98.0918 L 10,-98.0341 L 10,-98.1495 L 20,-92.376 L 20,-92.2606 L 20.1,-92.2028 z M 100.1,-57.7928 L 100.1,-69.3398 L 100,-69.282 L 100,-80.829 L 49.9,-109.754 L 39.8,-103.923 L 39.9,-103.865 L 40,-103.923 L 80,-80.829 L 79.9,-80.7713 L 89.9,-74.9978 L 90,-75.0555 L 90,-63.5085 L 89.9,-63.4508 L 89.9,-51.9038 z M 80.1,-46.2458 L 80.1,-57.7928 L 80,-57.735 L 80,-69.282 L 80.1,-69.3398 L 70.1,-75.1133 L 70,-75.0555 L 30,-98.1495 L 30.1,-98.2073 L 29.9,-98.3227 L 29.9,-86.5448 L 30,-86.487 L 30,-86.6025 L 60,-69.282 L 59.9,-69.2243 L 69.9,-63.4508 L 70,-63.5085 L 70,-51.9615 L 69.9,-51.9038 L 69.9,-40.3568 z M 120,-69.282 L 110,-75.0555 L 109.9,-74.9978 L 109.9,-63.4508 z"/>
+</svg>
+<script>
+// The th[is] logo tiled on a triangle grid; straight wave fronts sweep across the screen and
+// turn each tile they pass by 120° (shrinking it so it stays in its cell), and the colours turn with it.
+// Port of the KDE wallpaper local.thisripple.
+// Knobs (URL params), e.g. index.html?speed=5&interval=6&rows=8
+const q = new URLSearchParams(location.search);
+const SCALE = +q.get('scale') || 1;   // render resolution; 0.5 = a quarter of the pixels, much lighter
+const num = (name, def) => q.has(name) ? +q.get(name) : def;
+const SPEED = Math.max(num('speed', 5), 0.1);       // the front moves speed/15 screen widths per second
+const INTERVAL = Math.max(num('interval', 6), 0.5); // seconds between sweeps
+const ROWS = Math.max(Math.round(num('rows', 8)), 1);  // tiles stacked top to bottom
+const LEFT = '#' + (q.get('colour') || 'f58113');
+
+// sweep timing, as ripple.js in the wallpaper
+const TURN = 1.2, MAX_SWEEPS = 8;
+// A sweep front travelling along `angle`; offset and extent span the screen corners, widened by
+// `margin` (the tile side) so partly visible edge tiles are covered too.
+function newSweep(angle, aspect, start, margin) {
+  const dx = Math.cos(angle), dy = Math.sin(angle), p = [0, dx * aspect, dy, dx * aspect + dy];
+  const lo = Math.min(...p), hi = Math.max(...p);
+  return { dx, dy, offset: lo - margin, extent: hi - lo + 2 * margin, start };
+}
+// drop finished sweeps (folding their turn into base), then start a new one when due and a slot is free
+function step(state, t, v, aspect, margin) {
+  state.sweeps = state.sweeps.filter(s => {
+    if (t > s.start + s.extent / v + TURN) { state.base = (state.base + 1) % 3; return false; }
+    return true;
+  });
+  if (t >= state.next && state.sweeps.length < MAX_SWEEPS) {
+    state.sweeps.push(newSweep(2 * Math.PI * Math.random(), aspect, t, margin));
+    state.next = t + INTERVAL;
+  }
+}
+
+const frag = `#version 300 es
+precision highp float;
+in highp vec2 qt_TexCoord0;
+out vec4 fragColor;
+uniform highp float aspect;
+uniform highp int rows;
+uniform highp float v;
+uniform highp float base;
+uniform highp vec4 s[${MAX_SWEEPS}];   // (dx, dy, offset, age); unused ones have age -1000
+uniform highp float pixels;
+uniform sampler2D mask;
+uniform lowp vec4 colourLeft;
+uniform lowp vec4 colourBottom;
+uniform lowp vec4 colourTop;
+uniform lowp vec4 background;
+
+const highp float PI = 3.14159265;
+const highp float THIRD = 2.0943951;   // 2pi/3
+const highp float TURN = ${TURN.toFixed(3)};
+
+highp float ease(highp float u) {
+    u = clamp(u, 0.0, 1.0);
+    return u * u * (3.0 - 2.0 * u);
+}
+
+// rotate(-a), the screen-to-logo turn (screen y and SVG y both point down)
+highp vec2 logo(highp vec2 d, highp float ca, highp float sa) {
+    return vec2(ca * d.x + sa * d.y, -sa * d.x + ca * d.y);
+}
+
+// scale that keeps a tile turned by a inside its own cell: 1 at multiples of 120°, 0.5 at 60° off
+highp float fitScale(highp float a) {
+    highp float d = abs(a - floor(a / THIRD + 0.5) * THIRD);
+    return 1.0 / (cos(d) + sqrt(3.0) * sin(d));
+}
+
+void main() {
+    highp vec2 p = vec2(qt_TexCoord0.x * aspect, qt_TexCoord0.y);
+
+    // grid: tile side from the height, a column boundary on the centre line
+    highp float side = 1.0 / float(rows), col = side * sqrt(3.0) / 2.0;
+    highp float x0 = aspect / 2.0 - floor(aspect / 2.0 / col) * col;
+
+    // the tile containing p: centroid c, flip 1 = left-pointing
+    highp float u = (p.x - x0) / col, i = floor(u), fx = u - i;
+    highp float o = mod(i, 2.0) > 0.5 ? side / 2.0 : 0.0;
+    highp float w = (p.y - o) / side, j = floor(w), fy = w - j;
+    highp vec2 c;
+    highp float flip;
+    if (abs(fy - 0.5) <= 0.5 * (1.0 - fx)) {
+        c = vec2(x0 + (i + 1.0 / 3.0) * col, o + (j + 0.5) * side);
+        flip = 0.0;
+    } else {
+        c = vec2(x0 + (i + 2.0 / 3.0) * col, o + (fy < 0.5 ? j : j + 1.0) * side);
+        flip = 1.0;
+    }
+
+    // a tile turns once as each front passes its centroid
+    highp float t = base;
+    for (int k = 0; k < ${MAX_SWEEPS}; k++)
+        t += ease((s[k].w - (dot(s[k].xy, c) - s[k].z) / v) / TURN);
+    highp float a = flip * PI + t * THIRD;
+    highp float k = fitScale(t * THIRD);
+
+    // into logo space (centroid (40, -69.282), side 138.564), then mask texture space
+    // (viewBox -12 -150.564 144 162.564)
+    highp float ca = cos(a), sa = sin(a);
+    // grow each tile so its edges move out by 1 px, covering the mask's antialiased edge
+    highp float grow = max(1.0 - 3.4641 / (k * side * pixels), 0.5);
+    highp vec2 scale = grow / (k * side) * 138.564 / vec2(144.0, 162.564);
+    highp vec2 uv = (logo(p - c, ca, sa) * 138.564 * grow / (k * side) + vec2(40.0, -69.282)
+                     - vec2(-12.0, -150.564)) / vec2(144.0, 162.564);
+    // uv jumps between cells, so take the derivatives from the continuous p (no dark dots on cell edges)
+    lowp vec4 m = textureGrad(mask, uv, logo(dFdx(p), ca, sa) * scale, logo(dFdy(p), ca, sa) * scale);
+
+    lowp vec4 col4 = background;
+    col4 = mix(col4, colourLeft, m.r);
+    col4 = mix(col4, colourBottom, m.g);
+    col4 = mix(col4, colourTop, m.b);
+    fragColor = vec4(col4.rgb, 1.0);
+}`;
+
+const cv = document.getElementById('c'), gl = cv.getContext('webgl2');
+function shader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+// the same qt_TexCoord0 as Qt's ShaderEffect: (0,0) top-left
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, '#version 300 es\nin vec2 v; out highp vec2 qt_TexCoord0;' +
+  'void main() { qt_TexCoord0 = vec2(v.x * 0.5 + 0.5, 0.5 - v.y * 0.5); gl_Position = vec4(v, 0.0, 1.0); }'));
+gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, frag));
+gl.bindAttribLocation(prog, 0, 'v');
+gl.linkProgram(prog);
+gl.useProgram(prog);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+const u = name => gl.getUniformLocation(prog, name);
+const rgba = hex => [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255).concat([1]);
+gl.uniform1i(u('rows'), ROWS);
+gl.uniform1i(u('mask'), 0);
+gl.uniform4fv(u('colourLeft'), rgba(LEFT));
+gl.uniform4fv(u('colourBottom'), rgba('#bdbcbc'));
+gl.uniform4fv(u('colourTop'), rgba('#6b6e75'));
+gl.uniform4fv(u('background'), rgba('#000000'));
+
+// the mask, drawn at twice the tile height and mipmapped. Premultiplied, as Qt uploads it, so
+// a channel's value is that leg's coverage and the edges stay antialiased
+const svg = new Image(), tex = gl.createTexture();
+svg.src = 'data:image/svg+xml,' + encodeURIComponent(new XMLSerializer().serializeToString(document.querySelector('svg')));
+function drawMask() {
+  if (!svg.complete || !cv.height) return;
+  const h = Math.max(64, Math.round(cv.height / ROWS)) * 2, c = document.createElement('canvas');
+  c.height = h; c.width = Math.round(h * 144 / 162.564);
+  c.getContext('2d').drawImage(svg, 0, 0, c.width, c.height);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+svg.onload = drawMask;
+
+let aspect = 1, v = 1;
+function resize() {
+  cv.width = Math.round(innerWidth * devicePixelRatio * SCALE);
+  cv.height = Math.round(innerHeight * devicePixelRatio * SCALE);
+  gl.viewport(0, 0, cv.width, cv.height);
+  aspect = cv.width / cv.height;
+  v = SPEED / 15 * aspect;   // screen heights per second
+  gl.uniform1f(u('aspect'), aspect);
+  gl.uniform1f(u('pixels'), cv.height);
+  gl.uniform1f(u('v'), v);
+  drawMask();
+}
+addEventListener('resize', resize);
+resize();
+
+const state = { sweeps: [], base: 0, next: 0 }, sw = new Float32Array(4 * MAX_SWEEPS);
+function frame(now) {
+  requestAnimationFrame(frame);
+  const t = now / 1000;
+  step(state, t, v, aspect, 1 / ROWS);
+  for (let k = 0; k < MAX_SWEEPS; k++) {
+    const s = state.sweeps[k];
+    sw.set(s ? [s.dx, s.dy, s.offset, t - s.start] : [1, 0, 0, -1000], 4 * k);
+  }
+  gl.uniform1f(u('base'), state.base);
+  gl.uniform4fv(u('s'), sw);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
