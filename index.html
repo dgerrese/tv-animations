@@ -49,7 +49,7 @@
 <ol>
   <li>Install catt (needs Python): <pre><code>pipx install catt</code></pre> or <code>pip install catt</code>.</li>
   <li>Find your Chromecast's name: <pre><code>catt scan</code></pre></li>
-  <li><label>Type that name here (remembered in this browser): <input type="text" id="device" placeholder="Living Room TV"></label></li>
+  <li><label>Type that name here:<input type="text" id="device" placeholder="Living Room TV"></label></li>
   <li><label>Pick the animation: <select id="pick"></select></label>
     The command below includes its settings from above. Copy it, paste it in a terminal and run it (or use <b>Copy cast command</b> on an animation above).
     <pre><code id="example"></code></pre><button type="button" id="copyPick">Copy</button></li>
@@ -115,28 +115,20 @@ const ANIMATIONS = [
   ]],
 ];
 
-// remembered per browser; the page works without it
-const load = k => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };
-const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-
 const list = document.getElementById('list'), free = document.getElementById('free'), updates = [];
 // catt commands for casting without a tab; the device name is optional when there's only one Chromecast
 const device = document.getElementById('device');
-device.value = (() => { try { return localStorage.getItem('tv:device') || ''; } catch { return ''; } })();
 const quote = v => `'${v.replace(/'/g, `'\\''`)}'`;
 const catt = (...args) => ['catt', ...(device.value.trim() ? ['-d', quote(device.value.trim())] : []), ...args].join(' ');
 // the picked animation's command follows its tile's link, so settings changes show up right away
 const pick = document.getElementById('pick'), example = document.getElementById('example'), links = {};
 for (const [dir, title] of ANIMATIONS) pick.add(new Option(title, dir));
-pick.value = (() => { try { return localStorage.getItem('tv:pick'); } catch {} })() || 'hearth';
-if (!pick.value) pick.selectedIndex = 0;
 function updateHelp() {
   const href = links[pick.value]?.href || new URL(pick.value + '/', location.href).href;
   example.textContent = catt('cast_site', quote(href));
   document.getElementById('stop').textContent = catt('stop');
 }
-pick.onchange = () => { try { localStorage.setItem('tv:pick', pick.value); } catch {} updateHelp(); };
-device.oninput = () => { try { localStorage.setItem('tv:device', device.value); } catch {} updateHelp(); };
+pick.onchange = device.oninput = updateHelp;
 const copyPick = document.getElementById('copyPick');
 copyPick.onclick = async () => {
   try { await navigator.clipboard.writeText(example.textContent); copyPick.textContent = 'Copied!'; setTimeout(() => copyPick.textContent = 'Copy', 1500); }
@@ -144,7 +136,7 @@ copyPick.onclick = async () => {
 };
 updateHelp();
 for (const [dir, title, blurb, opts] of ANIMATIONS) {
-  const li = document.createElement('li'), saved = load('tv:' + dir);
+  const li = document.createElement('li');
   const a = links[dir] = Object.assign(document.createElement('a'), { className: 'open' });
   a.append(title, Object.assign(document.createElement('span'), { textContent: blurb }));
   const det = document.createElement('details');
@@ -153,9 +145,9 @@ for (const [dir, title, blurb, opts] of ANIMATIONS) {
     const l = document.createElement('label'), name = document.createElement('span'), i = document.createElement('input');
     name.textContent = label;
     if (hint) name.append(Object.assign(document.createElement('small'), { textContent: hint }));
-    if (typeof def === 'boolean') { i.type = 'checkbox'; i.checked = saved[key] ?? def; }
-    else if (String(def).startsWith('#')) { i.type = 'color'; i.value = saved[key] ?? def; }
-    else { Object.assign(i, { type: 'number', min, max, step, value: saved[key] ?? def }); Object.assign(i.dataset, { min, max, step }); }
+    if (typeof def === 'boolean') { i.type = 'checkbox'; i.checked = def; }
+    else if (String(def).startsWith('#')) { i.type = 'color'; i.value = def; }
+    else { Object.assign(i, { type: 'number', min, max, step, value: def }); Object.assign(i.dataset, { min, max, step }); }
     l.append(name, i); det.append(l);
     return { key, def, i };
   });
@@ -172,15 +164,13 @@ for (const [dir, title, blurb, opts] of ANIMATIONS) {
 
   // only non-default values go into the link, in the formats the animations read
   function update() {
-    const q = new URLSearchParams(), keep = {};
+    const q = new URLSearchParams();
     for (const { key, def, i } of inputs) {
       const v = i.type === 'checkbox' ? i.checked : i.type === 'color' ? i.value : +i.value;
       if (i.type === 'number' && (i.value === '' || !i.checkValidity())) continue;
       if (v === def) continue;
-      keep[key] = v;
       q.set(key, i.type === 'checkbox' ? '1' : i.type === 'color' ? v.slice(1) : v);
     }
-    save('tv:' + dir, keep);
     a.href = dir + '/' + (q.size ? '?' + q : '');
     updateHelp();
   }
@@ -200,9 +190,7 @@ function setFree(on) {
   for (const i of document.querySelectorAll('li input[type=number]')) if (on) i.step = 'any';
   updates.forEach(f => f());
 }
-free.checked = load('tv:free') === true;
-free.onchange = () => { save('tv:free', free.checked); setFree(free.checked); };
-setFree(free.checked);
+free.onchange = () => setFree(free.checked);
 </script>
 </body>
 </html>
